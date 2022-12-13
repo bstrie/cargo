@@ -1,6 +1,8 @@
-use crate::core::compiler::{unit_dependencies::IsArtifact, CompileKind, CompileMode, CrateType};
+use crate::core::compiler::unit_dependencies::IsArtifact;
+use crate::core::compiler::{CompileKind, CompileMode, CompileTarget, CrateType};
 use crate::core::manifest::{Target, TargetKind};
-use crate::core::{profiles::Profile, Package};
+use crate::core::profiles::Profile;
+use crate::core::Package;
 use crate::util::hex::short_hash;
 use crate::util::interning::InternedString;
 use crate::util::Config;
@@ -72,6 +74,14 @@ pub struct UnitInner {
     /// This value initially starts as 0, and then is filled in via a
     /// second-pass after all the unit dependencies have been computed.
     pub dep_hash: u64,
+
+    /// This is only set for artifact dependencies which have their
+    /// `<target-triple>|target` set.
+    /// If so, this information is used as part of the key for resolving their features,
+    /// allowing for target-dependent feature resolution within the entire dependency tree.
+    /// Note that this target corresponds to the target used to build the units in that
+    /// dependency tree, too, but this copy of it is specifically used for feature lookup.
+    pub artifact_target_for_features: Option<CompileTarget>,
 }
 
 impl UnitInner {
@@ -184,6 +194,7 @@ impl UnitInterner {
         is_std: bool,
         dep_hash: u64,
         artifact: IsArtifact,
+        artifact_target_for_features: Option<CompileTarget>,
     ) -> Unit {
         let target = match (is_std, target.kind()) {
             // This is a horrible hack to support build-std. `libstd` declares
@@ -216,6 +227,7 @@ impl UnitInterner {
             is_std,
             dep_hash,
             artifact,
+            artifact_target_for_features,
         });
         Unit { inner }
     }
